@@ -8,7 +8,7 @@ import openai
 from elevenlabs import generate, play
 import keyboard
 
-openai.api_key = "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"
+openai.api_key = "insert here your Chat gpt API KEY"
 
 # Initialize the recognizer
 r = sr.Recognizer()
