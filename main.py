@@ -5,15 +5,25 @@
 import speech_recognition as sr
 import pyttsx3
 import openai
-from elevenlabs import generate, play
+from dotenv import load_dotenv
+from elevenlabs import generate, play, voices
+from elevenlabs.client import ElevenLabs
 import keyboard
+import pprint
 
-openai.api_key = "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"
+# API key config
+import os
+load_dotenv()
+openai_api_key = os.environ.get('OPENAI_API_KEY')
+elevenlabs_api_key = os.environ.get('ELEVEN_API_KEY')
+openai.api_key = openai_api_key
+client = ElevenLabs(api_key=elevenlabs_api_key)
 
 # Initialize the recognizer
 r = sr.Recognizer()
 
 current_Chat = []
+default_voice = "Rachel"
 
 
 # Function to convert text to speech
@@ -26,8 +36,8 @@ def speak_text(command):
     engine.setProperty('rate', 150)
 
     # Set the voice for female
-    voices = engine.getProperty('voices')
-    engine.setProperty('voice', voices[1].id)
+    bad_voices = engine.getProperty('voices')
+    engine.setProperty('voice', bad_voices[1].id)
 
     engine.say(command)
     engine.runAndWait()
@@ -37,10 +47,58 @@ def speak_text(command):
 def better_voice(text):
     audio = generate(
         text=text,
-        voice="Bella",
-        model="eleven_multilingual_v2"
+        voice=default_voice,
+        model="eleven_multilingual_v2",
+        # api_key=elevenlabs_api_key
     )
+
     play(audio)
+
+
+def list_voices():
+    pp = pprint.PrettyPrinter(indent=4)
+    all_voices = voices()
+    # pp.pprint(all_voices)
+    for voice in all_voices:
+        this_voice = \
+            (f"{voice.name}: "
+             f"Gender:{voice.labels['gender']}, "
+             f"Accent:{voice.labels['accent']}, "
+             f"Age:{voice.labels['age']}, ")
+        print(this_voice)
+
+
+def change_voice():
+    all_voices = voices()
+    print("")
+
+    user_input = input("Type the name of the voice you want: ")
+    print(f"You entered {user_input}")
+
+    chosen_voice = str(user_input)
+
+    voice_found = False
+    for voice in all_voices:
+        if voice.name == chosen_voice:
+            print("Voice Found!")
+            voice_found = True
+
+    if voice_found:
+        confirm_voice(chosen_voice)
+    else:
+        print("Voice not found try again...")
+
+
+def confirm_voice(voice_name: str):
+    global default_voice
+    default_voice = voice_name
+    print(f"Hello, my name is {voice_name}, and this is my voice.")
+    better_voice(f"Hello, my name is {voice_name}, and this is my voice.")
+    user_input = input(f"Confirm your choice pressing entering Y or anything else to choose another voice.")
+    if user_input == 'Y' or user_input == 'y':
+        print('Voice changed!')
+    else:
+        change_voice()
 
 
 # ChatGPT function
@@ -95,8 +153,24 @@ def listen_user():
         print("unknown error occurred")
 
 
-# Loop infinitely for user to speak
-while 1:
+def print_menu():
+    print("AI voice program Menu")
+    print("Options:")
+    print(">> Start listening: 0")
+    print(">> List all voices: 1")
+    print(">> Choose new Voice: 2")
 
-    if keyboard.read_key() == "0":
+
+# Loop infinitely for user to speak
+print_menu()
+while True:
+
+    option = keyboard.read_key()
+
+    if option == "0":
         listen_user()
+    elif option == "1":
+        list_voices()
+    elif option == "2":
+        list_voices()
+        change_voice()
