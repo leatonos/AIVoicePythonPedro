@@ -13,6 +13,7 @@ import pprint
 
 # API key config
 import os
+
 load_dotenv()
 openai_api_key = os.environ.get('OPENAI_API_KEY')
 elevenlabs_api_key = os.environ.get('ELEVEN_API_KEY')
@@ -49,7 +50,7 @@ def better_voice(text):
         text=text,
         voice=default_voice,
         model="eleven_multilingual_v2",
-        # api_key=elevenlabs_api_key
+        api_key=elevenlabs_api_key
     )
 
     play(audio)
@@ -58,13 +59,14 @@ def better_voice(text):
 def list_voices():
     pp = pprint.PrettyPrinter(indent=4)
     all_voices = voices()
-    # pp.pprint(all_voices)
+    pp.pprint(all_voices)
     for voice in all_voices:
         this_voice = \
             (f"{voice.name}: "
              f"Gender:{voice.labels['gender']}, "
              f"Accent:{voice.labels['accent']}, "
-             f"Age:{voice.labels['age']}, ")
+             f"Age:{voice.labels['age']} ")
+        #    f"Description:{voice.labels['description']}, ")
         print(this_voice)
 
 
@@ -99,6 +101,28 @@ def confirm_voice(voice_name: str):
         print('Voice changed!')
     else:
         change_voice()
+
+
+def get_sub_status():
+    subscription_tier = client.user.get_subscription().tier
+    character_count = client.user.get_subscription().character_count
+    character_limit = client.user.get_subscription().character_limit
+
+    character_left = character_limit - character_count
+
+    print(
+        f"User Subscription: {subscription_tier}, "
+        f"Characters count: {character_count}, "
+        f"Characters limit: {character_limit}, "
+        f"Characters left: {character_left}"
+    )
+
+
+def get_characters_left():
+    character_count = client.user.get_subscription().character_count
+    character_limit = client.user.get_subscription().character_limit
+    character_left = character_limit - character_count
+    return character_left
 
 
 # ChatGPT function
@@ -159,6 +183,7 @@ def print_menu():
     print(">> Start listening: 0")
     print(">> List all voices: 1")
     print(">> Choose new Voice: 2")
+    print(">> Get Subscription Status: 3")
 
 
 # Loop infinitely for user to speak
@@ -174,3 +199,5 @@ while True:
     elif option == "2":
         list_voices()
         change_voice()
+    elif option == '3':
+        get_sub_status()
