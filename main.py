@@ -12,23 +12,31 @@ import keyboard
 import pprint
 
 # API key config
+# IN ORDER TO MAKE THIS APP WORK YOU NEED TO SET UP THIS
+# You will need Eleven labs api key and a ChatGPT api key
 import os
-
 load_dotenv()
 openai_api_key = os.environ.get('OPENAI_API_KEY')
 elevenlabs_api_key = os.environ.get('ELEVEN_API_KEY')
 openai.api_key = openai_api_key
 client = ElevenLabs(api_key=elevenlabs_api_key)
 
-# Initialize the recognizer
+# Initialize the voice recognizer
 r = sr.Recognizer()
-
-current_Chat = []
+current_Chat = [
+{"role": "system", "content": "You are a helpful assistant"}
+]
 default_voice = "Rachel"
 
 
-# Function to convert text to speech
-def speak_text(command):
+# Function to convert text to speech (HAS VERY BAD VOICE)
+def speak_text(text: str):
+    """
+
+    :param text: The text that will be read by python TTS
+    :return:
+    """
+
     # Initialize the engine
     engine = pyttsx3.init()
 
@@ -40,23 +48,37 @@ def speak_text(command):
     bad_voices = engine.getProperty('voices')
     engine.setProperty('voice', bad_voices[1].id)
 
-    engine.say(command)
+    engine.say(text)
     engine.runAndWait()
 
 
 # Better Voices from Eleven Labs
-def better_voice(text):
+def better_voice(text: str, voice: str):
+    """
+
+    Uses Eleven Labs API to generate and play voices
+    :param text: The text that will be read by Eleven Labs
+    :param voice: The name of the voice you choose to read the text (check the API to see the voices available
+
+    """
+
     audio = generate(
         text=text,
-        voice=default_voice,
+        voice=voice,
         model="eleven_multilingual_v2",
         api_key=elevenlabs_api_key
     )
 
     play(audio)
+    print(f"Your Account have {get_characters_left()} left.")
 
 
 def list_voices():
+    """
+    Prints in the console all the voices available in Eleven Labs
+    :return:
+    """
+
     pp = pprint.PrettyPrinter(indent=4)
     all_voices = voices()
     pp.pprint(all_voices)
@@ -95,7 +117,7 @@ def confirm_voice(voice_name: str):
     global default_voice
     default_voice = voice_name
     print(f"Hello, my name is {voice_name}, and this is my voice.")
-    better_voice(f"Hello, my name is {voice_name}, and this is my voice.")
+    better_voice(f"Hello, my name is {voice_name}, and this is my voice.", default_voice)
     user_input = input(f"Confirm your choice pressing entering Y or anything else to choose another voice.")
     if user_input == 'Y' or user_input == 'y':
         print('Voice changed!')
@@ -103,7 +125,13 @@ def confirm_voice(voice_name: str):
         change_voice()
 
 
-def get_sub_status():
+def print_sub_status():
+
+    """
+    Prints some information about your subscription to
+    :return:
+    """
+
     subscription_tier = client.user.get_subscription().tier
     character_count = client.user.get_subscription().character_count
     character_limit = client.user.get_subscription().character_limit
@@ -111,7 +139,8 @@ def get_sub_status():
     character_left = character_limit - character_count
 
     print(
-        f"User Subscription: {subscription_tier}, "
+        f"\n"
+        f"User Subscription: {subscription_tier} \n"
         f"Characters count: {character_count}, "
         f"Characters limit: {character_limit}, "
         f"Characters left: {character_left}"
@@ -119,6 +148,10 @@ def get_sub_status():
 
 
 def get_characters_left():
+    """
+    :return: How many characters you have left in your monthly Eleven Labs Subscription
+    """
+
     character_count = client.user.get_subscription().character_count
     character_limit = client.user.get_subscription().character_limit
     character_left = character_limit - character_count
@@ -127,6 +160,10 @@ def get_characters_left():
 
 # ChatGPT function
 def chat_ai():
+    """
+    Sends the current conversation to ChatGPT and awaits a response
+    after that gets the response and uses Eleven labs to read the message for you
+    """
     print("Chat Gpt is processing a response...")
 
     completion = openai.ChatCompletion.create(
@@ -138,13 +175,18 @@ def chat_ai():
     ai_result = completion.choices[0].message.content
 
     print(completion.choices[0].message.content)
-    better_voice(ai_result)
+    better_voice(ai_result, default_voice)
     # Adds the AI to the current chat so you can keep context to the conversation
     current_Chat.append({"role": "assistant", "content": ai_result})
 
 
 # Function that listen to the User
 def listen_user():
+    """
+    Uses your Microphone to listen your voice, after some seconds of silence it translate
+    your message to text, adds your text to a conversation log, then sends it to ChatGPT
+    """
+
     print("Listening to user")
     # Exception handling to handle
     # exceptions at the runtime
@@ -178,6 +220,11 @@ def listen_user():
 
 
 def print_menu():
+    """
+    Prints in the console all the options you have in this program
+    :return:
+    """
+
     print("AI voice program Menu")
     print("Options:")
     print(">> Start listening: 0")
@@ -199,5 +246,5 @@ while True:
     elif option == "2":
         list_voices()
         change_voice()
-    elif option == '3':
-        get_sub_status()
+    elif option == "3":
+        print_sub_status()
