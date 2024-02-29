@@ -3,13 +3,12 @@
 
 
 import speech_recognition as sr
-import pyttsx3
 import openai
+import ElevenLabsVoice
 from dotenv import load_dotenv
-from elevenlabs import generate, play, voices
+from elevenlabs import voices
 from elevenlabs.client import ElevenLabs
 import keyboard
-import pprint
 
 # API key config
 # IN ORDER TO MAKE THIS APP WORK YOU NEED TO SET UP THIS
@@ -18,83 +17,57 @@ import os
 load_dotenv()
 openai_api_key = os.environ.get('OPENAI_API_KEY')
 elevenlabs_api_key = os.environ.get('ELEVEN_API_KEY')
-openai.api_key = openai_api_key
 client = ElevenLabs(api_key=elevenlabs_api_key)
+openai.api_key = openai_api_key
 
 # Initialize the voice recognizer
 r = sr.Recognizer()
-current_Chat = [
-{"role": "system", "content": "You are a helpful assistant"}
+
+initial_context = ""
+
+solo_current_chat = [
+    {"role": "system", "content": initial_context}
 ]
 default_voice = "Rachel"
 
 
-# Function to convert text to speech (HAS VERY BAD VOICE)
-def speak_text(text: str):
+def get_ai_response(conversation):
     """
-
-    :param text: The text that will be read by python TTS
+    Sends the current conversation to ChatGPT and awaits a response
+    after that gets the response and uses Eleven labs to read the message for you
+    :param conversation:
     :return:
     """
+    print("Chat Gpt is processing a response...")
 
-    # Initialize the engine
-    engine = pyttsx3.init()
-
-    # Sets Volume and speed rate of speech
-    engine.setProperty("volume", 0.8)
-    engine.setProperty('rate', 150)
-
-    # Set the voice for female
-    bad_voices = engine.getProperty('voices')
-    engine.setProperty('voice', bad_voices[1].id)
-
-    engine.say(text)
-    engine.runAndWait()
-
-
-# Better Voices from Eleven Labs
-def better_voice(text: str, voice: str):
-    """
-
-    Uses Eleven Labs API to generate and play voices
-    :param text: The text that will be read by Eleven Labs
-    :param voice: The name of the voice you choose to read the text (check the API to see the voices available
-
-    """
-
-    audio = generate(
-        text=text,
-        voice=voice,
-        model="eleven_multilingual_v2",
-        api_key=elevenlabs_api_key
+    completion = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        max_tokens=150,
+        messages=conversation
     )
 
-    play(audio)
-    print(f"Your Account have {get_characters_left()} left.")
+    ai_result = completion.choices[0].message.content
+
+    print(completion.choices[0].message.content)
+    # ElevenLabsVoice.better_voice(ai_result, default_voice, elevenlabs_api_key)
+    # Adds the AI to the current chat, so you can keep context to the conversation
+
+    return ai_result
 
 
-def list_voices():
-    """
-    Prints in the console all the voices available in Eleven Labs
-    :return:
-    """
+def confirm_voice(chosen_voice):
+    test_text = f"Hello my name {chosen_voice}, and this is my voice"
+    ElevenLabsVoice.better_voice(test_text, chosen_voice, elevenlabs_api_key)
 
-    pp = pprint.PrettyPrinter(indent=4)
-    all_voices = voices()
-    pp.pprint(all_voices)
-    for voice in all_voices:
-        this_voice = \
-            (f"{voice.name}: "
-             f"Gender:{voice.labels['gender']}, "
-             f"Accent:{voice.labels['accent']}, "
-             f"Age:{voice.labels['age']} ")
-        #    f"Description:{voice.labels['description']}, ")
-        print(this_voice)
+    user_input = input("Confirm your choice by inputting Y or anything else to choose a new voice")
+    if str(user_input) == "Y":
+        global default_voice
+        default_voice = str(user_input)
+        print("Voice changed!")
 
 
 def change_voice():
     all_voices = voices()
-    print("")
 
     user_input = input("Type the name of the voice you want: ")
     print(f"You entered {user_input}")
@@ -111,73 +84,6 @@ def change_voice():
         confirm_voice(chosen_voice)
     else:
         print("Voice not found try again...")
-
-
-def confirm_voice(voice_name: str):
-    global default_voice
-    default_voice = voice_name
-    print(f"Hello, my name is {voice_name}, and this is my voice.")
-    better_voice(f"Hello, my name is {voice_name}, and this is my voice.", default_voice)
-    user_input = input(f"Confirm your choice pressing entering Y or anything else to choose another voice.")
-    if user_input == 'Y' or user_input == 'y':
-        print('Voice changed!')
-    else:
-        change_voice()
-
-
-def print_sub_status():
-
-    """
-    Prints some information about your subscription to
-    :return:
-    """
-
-    subscription_tier = client.user.get_subscription().tier
-    character_count = client.user.get_subscription().character_count
-    character_limit = client.user.get_subscription().character_limit
-
-    character_left = character_limit - character_count
-
-    print(
-        f"\n"
-        f"User Subscription: {subscription_tier} \n"
-        f"Characters count: {character_count}, "
-        f"Characters limit: {character_limit}, "
-        f"Characters left: {character_left}"
-    )
-
-
-def get_characters_left():
-    """
-    :return: How many characters you have left in your monthly Eleven Labs Subscription
-    """
-
-    character_count = client.user.get_subscription().character_count
-    character_limit = client.user.get_subscription().character_limit
-    character_left = character_limit - character_count
-    return character_left
-
-
-# ChatGPT function
-def chat_ai():
-    """
-    Sends the current conversation to ChatGPT and awaits a response
-    after that gets the response and uses Eleven labs to read the message for you
-    """
-    print("Chat Gpt is processing a response...")
-
-    completion = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        max_tokens=150,
-        messages=current_Chat
-    )
-
-    ai_result = completion.choices[0].message.content
-
-    print(completion.choices[0].message.content)
-    better_voice(ai_result, default_voice)
-    # Adds the AI to the current chat so you can keep context to the conversation
-    current_Chat.append({"role": "assistant", "content": ai_result})
 
 
 # Function that listen to the User
@@ -209,14 +115,62 @@ def listen_user():
 
             print("Chat GPT heard: ", MyText)
             # Add user's message to the current chat
-            current_Chat.append({"role": "user", "content": MyText})
-            chat_ai()
+            solo_current_chat.append({"role": "user", "content": MyText})
+            solo_current_chat.append({"role": "assistant", "content": get_ai_response(solo_current_chat)})
 
     except sr.RequestError as e:
         print("Could not request results; {0}".format(e))
 
     except sr.UnknownValueError:
         print("unknown error occurred")
+
+
+def setup_bot_conversation():
+
+    """
+    Starts some prompts so the user can write about the robots that will start a conversation
+    """
+
+    robots_context = {'robot_a': "", 'robot_b': ""}
+
+    first_robot_input = input("Describe the first Robot")
+    robots_context["robot_a"] = str(first_robot_input)
+
+    second_robot_input = input("Describe the second Robot")
+    robots_context["robot_b"] = str(second_robot_input)
+
+    rounds_input = input("How many rounds this conversation will have?")
+    rounds_number = int(rounds_input)
+
+    print("This will be the context of the conversation: \n")
+    print(f"Robot A: \n {robots_context['robot_a']}")
+    print(f"Robot B: \n {robots_context['robot_b']}")
+
+    start_robot_conversation(robots_context['robot_a'], robots_context['robot_b'], rounds_number)
+
+
+def start_robot_conversation(robot_a_context: str, robot_b_context: str, rounds: int):
+
+    robot_conversation_a = [
+        {"role": "system", "content": robot_a_context},
+        {"role": "user", "content": f"I am {robot_a_context} and I appear in front of you"}
+    ]
+    robot_conversation_b = [
+        {"role": "system", "content": robot_b_context},
+        {"role": "user", "content": f"I am {robot_b_context} and I appear in front of you"}
+    ]
+
+    for i in range(rounds):
+        print(i)
+        # From robot A to robot B
+        robot_a_response = get_ai_response(robot_conversation_a)
+        robot_conversation_a.append({"role": "assistant", "content": robot_a_response})
+        robot_conversation_b.append({"role": "user", "content": robot_a_response})
+
+        # From robot B to robot A
+        robot_b_response = get_ai_response(robot_conversation_b)
+        robot_conversation_b.append({"role": "assistant", "content": robot_b_response})
+        robot_conversation_a.append({"role": "user", "content": robot_b_response})
 
 
 def print_menu():
@@ -231,10 +185,12 @@ def print_menu():
     print(">> List all voices: 1")
     print(">> Choose new Voice: 2")
     print(">> Get Subscription Status: 3")
+    print(">> Start Robot Dialog: 4")
 
 
 # Loop infinitely for user to speak
 print_menu()
+
 while True:
 
     option = keyboard.read_key()
@@ -242,9 +198,11 @@ while True:
     if option == "0":
         listen_user()
     elif option == "1":
-        list_voices()
+        ElevenLabsVoice.list_voices()
     elif option == "2":
-        list_voices()
+        ElevenLabsVoice.list_voices()
         change_voice()
     elif option == "3":
-        print_sub_status()
+        ElevenLabsVoice.print_sub_status(elevenlabs_api_key)
+    elif option == "4":
+        setup_bot_conversation()
