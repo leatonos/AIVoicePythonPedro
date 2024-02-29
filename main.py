@@ -14,6 +14,9 @@ import keyboard
 # IN ORDER TO MAKE THIS APP WORK YOU NEED TO SET UP THIS
 # You will need Eleven labs api key and a ChatGPT api key
 import os
+
+import boringVoice
+
 load_dotenv()
 openai_api_key = os.environ.get('OPENAI_API_KEY')
 elevenlabs_api_key = os.environ.get('ELEVEN_API_KEY')
@@ -47,11 +50,7 @@ def get_ai_response(conversation):
     )
 
     ai_result = completion.choices[0].message.content
-
     print(completion.choices[0].message.content)
-    # ElevenLabsVoice.better_voice(ai_result, default_voice, elevenlabs_api_key)
-    # Adds the AI to the current chat, so you can keep context to the conversation
-
     return ai_result
 
 
@@ -114,9 +113,16 @@ def listen_user():
             MyText = MyText.lower()
 
             print("Chat GPT heard: ", MyText)
+
             # Add user's message to the current chat
             solo_current_chat.append({"role": "user", "content": MyText})
-            solo_current_chat.append({"role": "assistant", "content": get_ai_response(solo_current_chat)})
+
+            # Gets the AI Response and add to the the current Chat
+            ai_response = get_ai_response(solo_current_chat)
+            solo_current_chat.append({"role": "assistant", "content": ai_response})
+
+            # Plays the response using a voice that you choose in Eleven Labs
+            ElevenLabsVoice.better_voice(ai_response, default_voice, elevenlabs_api_key)
 
     except sr.RequestError as e:
         print("Could not request results; {0}".format(e))
@@ -126,7 +132,6 @@ def listen_user():
 
 
 def setup_bot_conversation():
-
     """
     Starts some prompts so the user can write about the robots that will start a conversation
     """
@@ -146,11 +151,10 @@ def setup_bot_conversation():
     print(f"Robot A: \n {robots_context['robot_a']}")
     print(f"Robot B: \n {robots_context['robot_b']}")
 
-    start_robot_conversation(robots_context['robot_a'], robots_context['robot_b'], rounds_number)
+    start_robot_conversation(robots_context['robot_a'], robots_context['robot_b'], rounds_number, elevenlabs_api_key)
 
 
-def start_robot_conversation(robot_a_context: str, robot_b_context: str, rounds: int):
-
+def start_robot_conversation(robot_a_context: str, robot_b_context: str, rounds: int, voice_api: str):
     robot_conversation_a = [
         {"role": "system", "content": robot_a_context},
         {"role": "user", "content": f"I am {robot_a_context} and I appear in front of you"}
@@ -166,11 +170,17 @@ def start_robot_conversation(robot_a_context: str, robot_b_context: str, rounds:
         robot_a_response = get_ai_response(robot_conversation_a)
         robot_conversation_a.append({"role": "assistant", "content": robot_a_response})
         robot_conversation_b.append({"role": "user", "content": robot_a_response})
+        # Using boring voice for now ElevenLabs is expensive, but you can use if if you want just uncomment your choice
+        # ElevenLabsVoice.better_voice(robot_a_response, default_voice, voice_api)
+        boringVoice.speak_text(robot_a_response)
 
         # From robot B to robot A
         robot_b_response = get_ai_response(robot_conversation_b)
         robot_conversation_b.append({"role": "assistant", "content": robot_b_response})
         robot_conversation_a.append({"role": "user", "content": robot_b_response})
+        # Using boring voice for now ElevenLabs is expensive, but you can use if if you want just uncomment your choice
+        # ElevenLabsVoice.better_voice(robot_b_response, default_voice, voice_api)
+        boringVoice.speak_text(robot_b_response)
 
 
 def print_menu():

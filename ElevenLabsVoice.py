@@ -18,7 +18,7 @@ def better_voice(text: str, voice: str, api_key: str):
         text=text,
         voice=voice,
         model="eleven_multilingual_v2",
-        # api_key=api_key
+        api_key=api_key
     )
 
     play(audio)
